@@ -1,0 +1,6 @@
+# SHA-256 of lab golden files relative to $MAME_DIR
+# Regenerate: (cd $MAME_DIR && shasum -a 256 roms/3b1/...) 
+1876b7605584c1a06ccb283eafb6d9492033a92e8356c1165f55636f38d131ca  roms/3b1/3b1.hd
+2014f0e7cc6b4744d116882bd3e34b96861b6c1f3221166185f82fe111c4aea3  roms/3b1/72-00616.14c
+21e0df217a0435a45570c9bc6efcf4fde4ca16588fabb24bce147f09600aced2  roms/3b1/72-00617.15c
+dcc913a2599da942218087e68efa64d3424c3f745245022f8f4b0ebeccfb5eda  roms/3b1/floppies/01_Diagnosic_Disk_Ver_3.51.IMD.bitsavers_pristine

@@ -1,0 +1,14 @@
+<!--
+  Merge into cfg/3b1.cfg under <system name="3b1">, or set via UI:
+  Machine Configuration → expansion → ethernet → LANCE interface + MAC.
+
+  Interface index is the pcap/OSD index for feth1 (check -verbose /
+  network device list after feth-up). Adjust "interface" if your
+  host enumerates differently.
+-->
+<device type="lance" tag=":exp1:ethernet:lance">
+	<!-- example: bind to feth1; set interface to the index MAME prints -->
+	<!-- <interface>N</interface> -->
+</device>
+<!-- Preferred MAC for this lab: -->
+<!-- mac = 02:00:00:3b:00:01 -->

@@ -1,0 +1,13 @@
+# never commit guest media
+media/*.hd
+media/*.IMD
+media/*.img
+media/*.gz
+media/ETHERNET*
+*.hd
+*.IMD
+*.sta
+.DS_Store
+*.prn
+/tmp/
+.env
