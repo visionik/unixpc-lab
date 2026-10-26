@@ -17,18 +17,154 @@ them against [`media/CHECKSUMS.sha256`](media/CHECKSUMS.sha256).
 
 ---
 
+## For agents: bring up 3B1 in MAME
+
+Follow this section end-to-end to get a bootable AT&T UNIX PC on the
+visionik MAME fork. Do **not** wipe or reformat the guest hard disk unless
+the user explicitly asks. Prefer the public prebuilt HD images below for a
+first boot; the maintainer’s golden `3b1.hd` (WIN/3B @ `192.168.9.50`) is
+local-only and is listed in `media/CHECKSUMS.sha256` when present.
+
+### Repos
+
+| Repo | Role | Clone |
+|------|------|--------|
+| [visionik/mame](https://github.com/visionik/mame) | Emulator + `3b1` driver (use default/`master` or `att-3b1`; they match) | `git clone --depth 1 https://github.com/visionik/mame.git` |
+| [visionik/unixpc-lab](https://github.com/visionik/unixpc-lab) | Recipes, Lua, host scripts (private — needs auth) | `gh repo clone visionik/unixpc-lab` |
+| Upstream [mamedev/mame](https://github.com/mamedev/mame) | Do **not** use for 3B1 — driver lives only on the fork | — |
+
+Optional reference emulator (not required): [philpem/freebee](https://github.com/philpem/freebee).
+
+### Build MAME (macOS example)
+
+Needs Xcode CLT, Python 3, and SDL2 (Homebrew):
+
+```bash
+brew install sdl2 sdl2_ttf
+git clone --depth 1 https://github.com/visionik/mame.git
+cd mame
+make -j"$(sysctl -n hw.ncpu)" \
+  SUBTARGET=unixpc \
+  SOURCES=src/mame/att/unixpc.cpp \
+  REGENIE=1
+# binary: ./unixpc
+```
+
+Linux: install distro SDL2/`SDL2_ttf`/Qt/build-essential equivalents, then the
+same `make SUBTARGET=unixpc …` line (use `nproc` instead of `sysctl`).
+
+Full compile docs: https://docs.mamedev.org/initialsetup/compilingmame.html
+
+### Download firmware (ROMs)
+
+```bash
+mkdir -p roms/3b1 && cd roms/3b1
+curl -L -o 3b1_roms.zip \
+  'http://bitsavers.org/pdf/att/3b1/firmware/3b1_roms.zip'
+unzip -o 3b1_roms.zip
+# MAME names (CRC must match the driver):
+cp -f '14C 72-00616.bin' 72-00616.14c
+cp -f '15C 72-00617.bin' 72-00617.15c
+```
+
+Direct zip: http://bitsavers.org/pdf/att/3b1/firmware/3b1_roms.zip
+
+### Download a hard disk image (pick one)
+
+Public images boot UNIX / Contiki. They generally **do not** include this
+lab’s WIN/3B `192.168.9.50` setup; use them for first boot / serial login.
+Place the raw image at `roms/3b1/3b1.hd`.
+
+| Image | Direct link | Notes |
+|-------|-------------|--------|
+| Arnold Robbins “all software + FIXDISK” (~175 MB max geom) | https://www.skeeve.com/3b1/all-sw+fixdisk-hd.img.gz | Good general-purpose starting HD |
+| Arnold Robbins “full + lots” | https://www.skeeve.com/3b1/full+lots-sw.img.gz | Larger software set; see https://www.skeeve.com/3b1/DISK-README.txt |
+| David Gesswein / VCF Museum (~67 MB) | http://www.pdp8online.com/3b1/3b1-hd.zip | Raw sector image; accounts `root`/`tutor`/`demo` often empty password — see http://www.pdp8online.com/3b1/demos.shtml |
+
+Example (Robbins image):
+
+```bash
+cd roms/3b1
+curl -L -o all-sw+fixdisk-hd.img.gz \
+  'https://www.skeeve.com/3b1/all-sw+fixdisk-hd.img.gz'
+gunzip -k all-sw+fixdisk-hd.img.gz
+mv -f all-sw+fixdisk-hd.img 3b1.hd
+```
+
+Maintainer golden image (if already on the machine): reuse
+`$MAME_DIR/roms/3b1/3b1.hd` and verify with
+`shasum -a 256 -c unixpc-lab/media/CHECKSUMS.sha256`. That image is the one
+with Contiki + WIN/3B ethernet already configured for the feth recipe.
+
+### Optional: Diagnostic / Foundation floppies
+
+Bitsavers System Software 3.51 IMDs:
+http://bitsavers.org/bits/ATT/unixPC/system_software_3.51/
+
+Patched Foundation disk 08 (boots to login under emulators):
+https://www.skeeve.com/3b1/os-install/index.html
+
+Keep pristine IMDs read-only; copy to `*.work` before Diag Disk write tests.
+
+### Sync lab Lua into the MAME tree
+
+```bash
+export MAME_DIR=~/path/to/mame
+export LAB_DIR=~/path/to/unixpc-lab
+"$LAB_DIR/scripts/sync-lua.sh"
+```
+
+### First launch (serial / Contiki — no host networking required)
+
+```bash
+cd "$MAME_DIR"
+./unixpc 3b1 \
+  -hard roms/3b1/3b1.hd \
+  -rs232 pty \
+  -modem \
+  -autoboot_script roms/3b1/snapview.lua
+```
+
+Wait for Contiki Login or a getty on the PTY (`RS-232 pty /dev/ttysN` in the
+log). Typical login: `root`, empty password, terminal type `s4`.
+
+### Networked peer (Darwin feth + pcap) — after first boot works
+
+Only needed for host↔guest ping/telnet. Requires the guest to have WIN/3B
+(`en0`) configured (golden HD) or a fresh WIN/3B install — see
+`unixpc_hw.md` in the fork.
+
+```bash
+sudo "$LAB_DIR/scripts/feth-up.sh"
+# Bind LANCE to feth1 + MAC 02:00:00:3b:00:01 in cfg (see cfg/3b1.lance.fragment.xml)
+# BPF: may need  sudo chmod g+rw /dev/bpf*; sudo chgrp admin /dev/bpf*
+"$LAB_DIR/scripts/launch-networked.sh"
+# later: ping 192.168.9.50 ; /usr/bin/nc 192.168.9.50 23
+```
+
+### Agent constraints
+
+- Do **not** run Destructive Hard Disk Surface / reformat unless the user asks.
+- Do **not** use `-rs232 loopback` for interactive Contiki (getty IRQ storm).
+- Prefer `/usr/bin/nc` over Homebrew telnet/python (macOS Local Network privacy).
+- Do **not** commit guest `*.hd` / IMDs / `ETHERNET+IN` into either git repo.
+- Deep board map and recipes: `$MAME_DIR/src/mame/att/unixpc_hw.md`.
+
+---
+
 ## Contents
 
-1. [What works / what does not](#what-works--what-does-not)
-2. [Where to get ROMs, disks, and docs](#where-to-get-roms-disks-and-docs)
-3. [Local media layout](#local-media-layout)
-4. [Lab repo layout](#lab-repo-layout)
-5. [Command-line parameters](#command-line-parameters)
-6. [Complete command-line examples](#complete-command-line-examples)
-7. [Networked Contiki quick start](#networked-contiki-quick-start)
-8. [Telnet / FTP from the host](#telnet--ftp-from-the-host)
-9. [OSD shortcuts and save states](#osd-shortcuts-and-save-states)
-10. [Known host pitfalls](#known-host-pitfalls)
+1. [For agents: bring up 3B1 in MAME](#for-agents-bring-up-3b1-in-mame)
+2. [What works / what does not](#what-works--what-does-not)
+3. [Where to get ROMs, disks, and docs](#where-to-get-roms-disks-and-docs)
+4. [Local media layout](#local-media-layout)
+5. [Lab repo layout](#lab-repo-layout)
+6. [Command-line parameters](#command-line-parameters)
+7. [Complete command-line examples](#complete-command-line-examples)
+8. [Networked Contiki quick start](#networked-contiki-quick-start)
+9. [Telnet / FTP from the host](#telnet--ftp-from-the-host)
+10. [OSD shortcuts and save states](#osd-shortcuts-and-save-states)
+11. [Known host pitfalls](#known-host-pitfalls)
 
 ---
 
@@ -119,13 +255,16 @@ This lab’s golden guest is a **local** raw image `roms/3b1/3b1.hd`
 installed (`mame3b1` / `192.168.9.50`). It is **not** redistributed here;
 see `media/CHECKSUMS.sha256` for the hash of the current golden file.
 
-Public / community HD starting points (for FreeBee or fresh installs):
+Public / community HD starting points (also listed in [For agents](#for-agents-bring-up-3b1-in-mame)):
 
-| Resource | Notes |
-|----------|--------|
-| [FreeBee](https://github.com/philpem/freebee) | Emulator + build-your-own HD (`makehdimg`); points at community images |
-| Arnold Robbins / VCF / Gesswein images | Linked from FreeBee “existing drive image” docs |
-| Fresh install from Bitsavers Foundation IMDs | Install inside MAME or FreeBee, then copy the raw HD into `roms/3b1/3b1.hd` |
+| Image | Direct link |
+|-------|-------------|
+| Robbins all-sw + FIXDISK | https://www.skeeve.com/3b1/all-sw+fixdisk-hd.img.gz |
+| Robbins full + lots | https://www.skeeve.com/3b1/full+lots-sw.img.gz |
+| Gesswein / VCF raw (~67 MB) | http://www.pdp8online.com/3b1/3b1-hd.zip |
+| Index / README | https://www.skeeve.com/3b1/ · http://www.pdp8online.com/3b1/demos.shtml |
+| FreeBee (build-your-own) | https://github.com/philpem/freebee |
+| Fresh install IMDs | http://bitsavers.org/bits/ATT/unixPC/system_software_3.51/ |
 
 Host filesystem tools for SysV images (inspect/mount outside the guest):
 
