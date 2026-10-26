@@ -3,16 +3,21 @@
 Lab companion for AT&T **UNIX PC / 3B1** work in
 [visionik/mame](https://github.com/visionik/mame) (default branch / `att-3b1`).
 
-This repo holds **recipes, host scripts, Lua smokes, and docs**. It does
-**not** ship guest hard disks, floppies, ROMs, or WIN/3B packages
+This repo holds **implementation notes, recipes, host scripts, and Lua
+smokes**. Deep board/ethernet/image writeups live under [`docs/`](docs/)
+(canonical). The MAME fork keeps short stubs that point here.
+
+It does **not** ship guest hard disks, floppies, ROMs, or WIN/3B packages
 (copyrighted). Put those under your local MAME `roms/3b1/` tree and check
 them against [`media/CHECKSUMS.sha256`](media/CHECKSUMS.sha256).
 
 | Related | Link |
 |---------|------|
 | MAME fork (driver) | https://github.com/visionik/mame |
-| Driver hardware notes | `src/mame/att/unixpc_hw.md` in the fork |
-| Branch changelog | `changelog.md` in the fork |
+| Hardware / implementation notes | [`docs/unixpc_hw.md`](docs/unixpc_hw.md) *(canonical — here)* |
+| Disk image notes | [`docs/unixpc_image.md`](docs/unixpc_image.md) |
+| Host filsys notes | [`docs/unixpc_filsys.md`](docs/unixpc_filsys.md) |
+| Branch changelog | [`docs/changelog-att-3b1.md`](docs/changelog-att-3b1.md) |
 | This lab (private) | https://github.com/visionik/unixpc-lab |
 
 ---
@@ -132,7 +137,7 @@ log). Typical login: `root`, empty password, terminal type `s4`.
 
 Only needed for host↔guest ping/telnet. Requires the guest to have WIN/3B
 (`en0`) configured (golden HD) or a fresh WIN/3B install — see
-`unixpc_hw.md` in the fork.
+[`docs/unixpc_hw.md`](docs/unixpc_hw.md).
 
 ```bash
 sudo "$LAB_DIR/scripts/feth-up.sh"
@@ -148,7 +153,7 @@ sudo "$LAB_DIR/scripts/feth-up.sh"
 - Do **not** use `-rs232 loopback` for interactive Contiki (getty IRQ storm).
 - Prefer `/usr/bin/nc` over Homebrew telnet/python (macOS Local Network privacy).
 - Do **not** commit guest `*.hd` / IMDs / `ETHERNET+IN` into either git repo.
-- Deep board map and recipes: `$MAME_DIR/src/mame/att/unixpc_hw.md`.
+- Deep board map and recipes: [`docs/unixpc_hw.md`](docs/unixpc_hw.md) in this lab.
 
 ---
 
@@ -159,12 +164,13 @@ sudo "$LAB_DIR/scripts/feth-up.sh"
 3. [Where to get ROMs, disks, and docs](#where-to-get-roms-disks-and-docs)
 4. [Local media layout](#local-media-layout)
 5. [Lab repo layout](#lab-repo-layout)
-6. [Command-line parameters](#command-line-parameters)
-7. [Complete command-line examples](#complete-command-line-examples)
-8. [Networked Contiki quick start](#networked-contiki-quick-start)
-9. [Telnet / FTP from the host](#telnet--ftp-from-the-host)
-10. [OSD shortcuts and save states](#osd-shortcuts-and-save-states)
-11. [Known host pitfalls](#known-host-pitfalls)
+6. [Implementation notes (`docs/`)](#implementation-notes-docs)
+7. [Command-line parameters](#command-line-parameters)
+8. [Complete command-line examples](#complete-command-line-examples)
+9. [Networked Contiki quick start](#networked-contiki-quick-start)
+10. [Telnet / FTP from the host](#telnet--ftp-from-the-host)
+11. [OSD shortcuts and save states](#osd-shortcuts-and-save-states)
+12. [Known host pitfalls](#known-host-pitfalls)
 
 ---
 
@@ -269,7 +275,7 @@ Public / community HD starting points (also listed in [For agents](#for-agents-b
 Host filesystem tools for SysV images (inspect/mount outside the guest):
 
 - https://github.com/dad4x/s4-3b1-pc7300 (and forks) — `sysv` / libs4 for 3B1 volumes  
-- Fork docs also describe `filsys` usage in `src/mame/att/unixpc_filsys.md`
+- Lab notes: [`docs/unixpc_filsys.md`](docs/unixpc_filsys.md)
 
 ### Networking package (WIN/3B)
 
@@ -277,8 +283,8 @@ Host filesystem tools for SysV images (inspect/mount outside the guest):
 |------|-------------------|
 | `ETHERNET+IN` cpio package | `roms/3b1/ethernet/ETHERNET+IN` (local only) |
 
-Install notes (omit `cpio -B`): see `unixpc_hw.md` “Fresh install” in the
-MAME fork. The golden `3b1.hd` already has ether loaded via
+Install notes (omit `cpio -B`): see [`docs/unixpc_hw.md`](docs/unixpc_hw.md)
+(“Fresh install”). The golden `3b1.hd` already has ether loaded via
 `/etc/lddrv/drivers` + `ether.rc`.
 
 ### Community / archives (software & FAQ)
@@ -324,12 +330,32 @@ More detail: [`docs/media-layout.md`](docs/media-layout.md),
 
 | Path | Role |
 |------|------|
-| `docs/` | Networking, media layout, fork pointer |
+| `docs/` | **Canonical** implementation notes (`unixpc_hw`, image, filsys, changelog) plus networking / media runbooks |
 | `scripts/` | `feth-up/down`, `launch-networked`, `telnet-stress`, `sync-lua`, `bpf-restore` |
 | `lua/` | Snapview + savestate smokes |
 | `cfg/` | LANCE / MAC cfg fragment notes |
 | `media/` | SHA-256 only |
 | `ci/smoke-checklist.md` | Manual smoke list |
+
+---
+
+## Implementation notes (`docs/`)
+
+These are the canonical writeups formerly under `src/mame/att/` in the
+MAME fork. The fork now has short stubs + [`src/mame/att/README.md`](https://github.com/visionik/mame/blob/master/src/mame/att/README.md)
+pointing here.
+
+| Doc | Contents |
+|-----|----------|
+| [`docs/unixpc_hw.md`](docs/unixpc_hw.md) | Board map, floppy DMA, printer/LPINT, parity, modem stub, expansion, WIN/3B status-ring / feth recipe, gaps |
+| [`docs/unixpc_image.md`](docs/unixpc_image.md) | HD geometry, volume header, image sizes |
+| [`docs/unixpc_filsys.md`](docs/unixpc_filsys.md) | Host `filsys` / SysV slice access |
+| [`docs/changelog-att-3b1.md`](docs/changelog-att-3b1.md) | Branch arc (boot → ethernet) |
+| [`docs/networking.md`](docs/networking.md) | Short Darwin feth/pcap / telnet / BPF runbook |
+| [`docs/mame-fork.md`](docs/mame-fork.md) | Fork pointer and note ownership |
+
+Non-obvious hardware constraints that affect code stay as comments in the
+driver sources (MAME practice: the source is the documentation).
 
 ---
 
