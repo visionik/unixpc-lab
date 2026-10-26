@@ -3,7 +3,7 @@
 
 # AT&T 3B1 / UNIX PC (`att-3b1` branch)
 
-Changelog for the [visionik/mame](https://github.com/visionik/mame) `att-3b1` work on top of upstream [mamedev/mame](https://github.com/mamedev/mame). Driver lives under `src/mame/att/`; hardware notes in `src/mame/att/unixpc_hw.md`.
+Changelog for the [visionik/mame](https://github.com/visionik/mame) `att-3b1` work on top of upstream [mamedev/mame](https://github.com/mamedev/mame). Driver lives under `src/mame/att/`; hardware notes in [`unixpc_hw.md`](unixpc_hw.md) (this lab).
 
 ## Unreleased
 
