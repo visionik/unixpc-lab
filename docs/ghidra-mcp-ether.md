@@ -8,9 +8,60 @@ Build / other MCP clients.
 status-ring path is already documented in [`unixpc_hw.md`](unixpc_hw.md) —
 do not redo that from scratch unless something disagrees with MAME.
 
-**This machine (as of checklist authoring):** `uv` is installed;
-Ghidra / Java / `bridge-mcp-ghidra` were **not** present yet. Expect to
-install steps 1–4 before an agent can call Ghidra tools.
+**This machine (checklist run complete):** Java 21 (`openjdk@21`), Ghidra
+12.1.4 at `~/Tools/ghidra_12.1.4_PUBLIC` with `mac_arm_64` natives installed,
+`bridge-mcp-ghidra` on PATH, GhidraMCP **7.0.0** extension + headless jar,
+project `re/ghidra/win3b-ether` with `ether.o` open, board `en*` labeled from
+COFF, Grok `[mcp_servers.ghidra-mcp]` wired. Restart the Grok session (or
+reload MCPs) so the bridge tools appear.
+
+### Quick start (already installed)
+
+```bash
+# Terminal 1 — headless HTTP API on :8089
+~/Projects/unixpc-lab/scripts/ghidra-mcp-headless.sh
+
+# Health
+curl -s http://127.0.0.1:8089/check_connection
+# {"status":"ok","server_kind":"headless","version":"7.0.0","program":"ether.o"}
+
+# Re-apply COFF board labels if the project was wiped
+~/Projects/unixpc-lab/scripts/ghidra-label-ether-coff.py
+```
+
+Grok config (`~/.grok/config.toml`):
+
+```toml
+[mcp_servers.ghidra-mcp]
+command = "/Users/visionik/.local/bin/bridge-mcp-ghidra"
+enabled = true
+startup_timeout_sec = 60
+tool_timeout_sec = 600
+
+[mcp_servers.ghidra-mcp.env]
+GHIDRA_MCP_URL = "http://127.0.0.1:8089"
+```
+
+### Address model (important)
+
+Headless import used **BinaryLoader** on the whole COFF file at image base
+**`0x367000`** (headers included). `.text` bytes therefore start at
+`0x367400` (`BASE + scnptr`). COFF section VMAs inside the object are
+relocatable (`.text @ 0x80000`); map with:
+
+`ghidra_va = 0x367000 + scnptr + (n_value - sect.vaddr)`
+
+Examples after labeling: `enprobe=0x374bf0`, `enintr=0x375316`,
+`enrint=0x3755ac`. These are **Ghidra flat-file VAs**, not the guest
+`lddrv` runtime map that places softc near `0x3795d0` in
+[`unixpc_hw.md`](unixpc_hw.md). Do **not** call `/set_image_base` again on
+this project — it double-shifted blocks once already; current layout is
+correct with metadata `base_address` possibly reporting `0` while blocks
+sit at `0x367000`.
+
+`enintr` decomp already shows the status-ring high-byte decode
+(`0x0100` IDON, `0x0200` TINT, `0x0400` RINT → `enrint`, else `enreset`),
+matching the emulator notes.
 
 ---
 
@@ -165,11 +216,25 @@ Keep MAME + pcap as runtime ground truth.
 
 ---
 
-## 7. Headless / Docker (optional)
+## 7. Headless (preferred on this Mac)
 
-Upstream ships Docker for CI-style analysis (`ghidra-mcp/docker`). Useful
-for batch doc without a GUI; for interactive softc work the GUI + MCP
-path is easier. Set `GHIDRA_MCP_AUTH_TOKEN` if binding off localhost.
+GUI works too (extension under `~/.ghidra/.ghidra_12.1.4_PUBLIC/Extensions/GhidraMCP`),
+but the lab default is the headless server:
+
+1. Build / refresh jar once: clone `bethington/ghidra-mcp` →
+   `mvn -DskipTests package` →
+   `/tmp/ghidra-mcp/target/GhidraMCP-7.0.0.jar` (override with `GHIDRA_MCP_JAR`).
+2. After `support/gradle/./gradlew buildNatives`, copy
+   `Ghidra/Features/*/build/os/mac_arm_64` → `…/os/mac_arm_64` (PUBLIC zip
+   ships without Apple Silicon decompiler natives).
+3. Launch: `scripts/ghidra-mcp-headless.sh` (binds `127.0.0.1:8089`, opens
+   `win3b-ether` / `ether.o`).
+4. Label: `scripts/ghidra-label-ether-coff.py` (board symbols) or
+   `--all-twg` for `tcp_`/`ip_`/`arp_`/`if_`.
+
+Upstream Docker (`ghidra-mcp/docker/entrypoint.sh`) is the classpath
+template the lab script mirrors. Set `GHIDRA_MCP_AUTH_TOKEN` only if
+binding off localhost.
 
 ---
 
@@ -192,11 +257,12 @@ re/binaries/
 
 ## 9. Done when
 
-- [ ] `curl` health OK on `:8089`  
-- [ ] Grok MCP lists ghidra tools  
-- [ ] `enintr` / `enprobe` resolve by name at sensible addresses  
-- [ ] Image base `0x367000`  
+- [x] `curl` health OK on `:8089` (headless 7.0.0, program `ether.o`)
+- [x] Grok MCP config wired (`bridge-mcp-ghidra` + `GHIDRA_MCP_URL`); **reload session** for tools
+- [x] `enintr` / `enprobe` resolve by name (`0x375316` / `0x374bf0` flat VAs)
+- [x] Image blocks at `0x367000` (BinaryLoader; see address model above)
 - [ ] Softc struct sketched; one TWG path documented in lab `docs/`  
+
 
 ---
 
