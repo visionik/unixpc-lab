@@ -4,11 +4,15 @@ Follow-on to the board datapath in [`unixpc_hw.md`](unixpc_hw.md) and the
 Ghidra setup in [`ghidra-mcp-ether.md`](ghidra-mcp-ether.md).
 
 **Primary artifact now:** linked image from `scripts/link-ether-coff.py`
-→ `re/binaries/ether.linked.bin` (+ `.map.json`), imported in Ghidra as
-`ether.linked.bin` at base `0x367000` with R_RELLONG applied. Decomp
-resolves `NextCSR`, `StatusRing`, `RxRing`, `en_softc`, `ipintrq`,
-`arptab`, etc. Kernel externals (`getslot`, `bcopy`, …) remain `0` /
-`func_0x00000000`.
+→ `re/binaries/ether.linked.bin` (+ `.map.json`), imported in Ghidra at
+base `0x367000` with R_RELLONG applied. Decomp resolves `NextCSR`,
+`StatusRing`, `RxRing`, `en_softc`, `ipintrq`, `arptab`, etc.
+
+Kernel externals: bake known VAs via `scripts/unix-externals.json`
+(`getslot=0x75de`, `slotinit=0x7592` from `/unix` / `unixpc_hw.md`). In
+Ghidra, create a small `r-x` block + function at those addresses so
+`enprobe` decomp shows `getslot(0x1003)`. Remaining externals (`bcopy`,
+`copyin`, …) stay `0` until a full guest `unix.sym` is available.
 
 **Do not redo** the status-ring / AM7990 board path unless something
 disagrees with MAME.
@@ -51,13 +55,15 @@ live `lddrv` load Capstone used):
 ### Rebuild / re-import
 
 ```bash
-~/Projects/unixpc-lab/scripts/link-ether-coff.py
+~/Projects/unixpc-lab/scripts/link-ether-coff.py   # uses scripts/unix-externals.json
 # GhidraMCP: POST /import_file language=68000:BE:32:default
 #            POST /set_image_base 0x367000  (once; program was at 0)
 # Label from ether.linked.map.json; recreate en_softc + arptab_entry
+# Create r-x stub block + function at getslot (0x75de) if decomp needs it
 ```
 
-Pass `program=ether.linked.bin` on every MCP call when `ether.o` is also open.
+Pass `program=ether.linked.bin` (or `ether.linked.kext.bin`) on every MCP
+call when multiple programs are open.
 
 ---
 
@@ -71,11 +77,13 @@ Callers pass the unit (`enprobe` / `eninit` / `enrint` / `enstart`) or an
 
 | Off | Field | Evidence |
 |-----|-------|----------|
-| `+0x00`…`+0x07` | `ifnet` head (name/unit/…) | Not yet field-named; `enoutput` reads `if_unit` at `ifnet+4` when passed an `ifnet*` |
+| `+0x00` | `if_name` (`char*`) | `enattach` → `"en"` at `0x377b9f` |
+| `+0x04` | `if_unit` (`short`) | `enattach` / `enoutput` / `enioctl` |
+| `+0x06` | `if_mtu` (`short`) | `enattach` = `0x5dc` (1500) |
 | `+0x08` | `in_netof` | `ensetaddr` |
 | `+0x0c` | `if_flags` (word); `+0xd` byte tests | `eninit` `\| 0x41`; `arpinput` / `arpresolve` test `+0xd & 0x80` |
 | `+0x10` | `in_lnaof` | `ensetaddr` |
-| `+0x18`…`+0x24` | `ifreq` / sockaddr words | `ensetaddr` |
+| `+0x18`…`+0x24` | `ifreq` / sockaddr words | `ensetaddr`; `enattach` sets `*(short*)(+0x18)=2` |
 | `+0x1c` | configured IPv4 (also ARP local) | `eninit` gate; `arpinput` / `arpwhohas` |
 | `+0x28` | `sa_family` (`2` = `AF_INET`) | `ensetaddr` |
 | `+0x2c` | broadcast | `ensetaddr` |
@@ -84,10 +92,16 @@ Callers pass the unit (`enprobe` / `eninit` / `enrint` / `enstart`) or an
 | `+0x40` | output queue length | |
 | `+0x44` | output queue max | |
 | `+0x48` | output drops | |
-| `+0x50` | `if_output` | `arpwhohas` → `(*(softc+0x50))(…)` (typically `enoutput`) |
+| `+0x4c` | `if_init` | `enattach` → `eninit` |
+| `+0x50` | `if_output` | `enattach` → `enoutput`; `arpwhohas` calls it |
+| `+0x54` | `if_ioctl` | `enattach` → `enioctl` |
+| `+0x58` | `if_reset` | `enattach` → `enrelease` |
 | `+0x60` | RX interrupt count | `enrint` (`en_softc+0x60` → `0x3796b4` linked) |
 | `+0x64` | RX error count | `enrint` / ENP miss |
 | `+0x78`…`+0x7d` | station MAC | `enprobe` / TX src / ARP |
+
+`enattach` finishes with `if_attach(softc, &softc->ifr_addr0)` (linked
+`if_attach` @ `0x373bc6`).
 
 Ghidra: datatype `en_softc` applied at linked `0x379654`.
 
@@ -215,7 +229,6 @@ table.
 
 ## Still open
 
-- Name `en_softc+0x00…+0x07` against a TWG `ifnet` header dump.
-- Wire externals (`getslot`, `bcopy`, `copyin`, …) as EXTERNAL stubs or
-  against `/unix` for full call graphs.
+- Pull full guest `unix.sym` / `nm /unix` into `unix-externals.json`
+  (`bcopy`, `copyin`, `timeout`, …) for complete call graphs.
 - Optional live MAME ARP/telnet counter check vs `enrint` demux.
