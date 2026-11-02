@@ -44,24 +44,23 @@ GHIDRA_MCP_URL = "http://127.0.0.1:8089"
 
 ### Address model (important)
 
-Headless import used **BinaryLoader** on the whole COFF file at image base
-**`0x367000`** (headers included). `.text` bytes therefore start at
-`0x367400` (`BASE + scnptr`). COFF section VMAs inside the object are
-relocatable (`.text @ 0x80000`); map with:
+**Preferred:** build a linked image and import that:
 
-`ghidra_va = 0x367000 + scnptr + (n_value - sect.vaddr)`
+```bash
+~/Projects/unixpc-lab/scripts/link-ether-coff.py   # → re/binaries/ether.linked.bin
+```
 
-Examples after labeling: `enprobe=0x374bf0`, `enintr=0x375316`,
-`enrint=0x3755ac`. These are **Ghidra flat-file VAs**, not the guest
-`lddrv` runtime map that places softc near `0x3795d0` in
-[`unixpc_hw.md`](unixpc_hw.md). Do **not** call `/set_image_base` again on
-this project — it double-shifted blocks once already; current layout is
-correct with metadata `base_address` possibly reporting `0` while blocks
-sit at `0x367000`.
+That applies COFF `R_RELLONG` (type 17), places `.text` at `0x367000`, then
+`.data` / `.bss` / COMMON (`en_softc`, `NextCSR`, rings, …). Softc/TWG
+notes and VAs: [`win3b-tcp.md`](win3b-tcp.md).
 
-`enintr` decomp already shows the status-ring high-byte decode
-(`0x0100` IDON, `0x0200` TINT, `0x0400` RINT → `enrint`, else `enreset`),
-matching the emulator notes.
+**Legacy:** BinaryLoader on the raw `.o` at `0x367000` (headers included,
+no relocs). Flat map: `ghidra_va = 0x367000 + scnptr + (n_value - sect.vaddr)`.
+Do **not** re-`/set_image_base` on a program that already sits at
+`0x367000` — it double-shifts.
+
+When both `ether.o` and `ether.linked.bin` are open, pass
+`program=ether.linked.bin` on every MCP call.
 
 ---
 

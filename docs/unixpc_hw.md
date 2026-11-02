@@ -438,9 +438,10 @@ address copies the `ifreq` into softc via `ensetaddr` (also fills
 
 #### Softc / globals (linked at `0x367000`)
 
-Runtime VAs from one `lddrv` load of the linked driver (not Ghidra flat
-`.o` addresses). Softc **field offsets** and the TWG RX→ARP/IP path are
-expanded in [`win3b-tcp.md`](win3b-tcp.md).
+Runtime VAs from one `lddrv` load of the linked driver. A host-side link
+of `ether.o` (`scripts/link-ether-coff.py`) reproduces this cluster within
+~4 bytes; softc **field offsets**, `arptab`, and the TWG RX→ARP/IP path
+are in [`win3b-tcp.md`](win3b-tcp.md).
 
 | Addr | Role |
 |---|---|
