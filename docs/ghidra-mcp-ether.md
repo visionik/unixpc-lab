@@ -261,7 +261,7 @@ re/binaries/
 - [x] Grok MCP config wired (`bridge-mcp-ghidra` + `GHIDRA_MCP_URL`); **reload session** for tools
 - [x] `enintr` / `enprobe` resolve by name (`0x375316` / `0x374bf0` flat VAs)
 - [x] Image blocks at `0x367000` (BinaryLoader; see address model above)
-- [ ] Softc struct sketched; one TWG path documented in lab `docs/`  
+- [x] Softc struct + TWG RX/ARP path documented in [`win3b-tcp.md`](win3b-tcp.md)
 
 
 ---
@@ -270,5 +270,5 @@ re/binaries/
 
 - https://github.com/bethington/ghidra-mcp (release **v7.0.0**)  
 - https://github.com/NationalSecurityAgency/ghidra/releases  
-- Lab: [`unixpc_hw.md`](unixpc_hw.md), [`unixpc_filsys.md`](unixpc_filsys.md)  
+- Lab: [`unixpc_hw.md`](unixpc_hw.md), [`unixpc_filsys.md`](unixpc_filsys.md), [`win3b-tcp.md`](win3b-tcp.md)  
 - Package: `$MAME_DIR/roms/3b1/ethernet/ETHERNET+IN`  
