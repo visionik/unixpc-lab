@@ -11,3 +11,10 @@ media/ETHERNET*
 *.prn
 /tmp/
 .env
+
+# Ghidra / local RE (copyrighted binaries + project DB)
+re/ghidra/
+re/binaries/
+*.gpr
+*.rep/
+*.lock*

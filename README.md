@@ -353,6 +353,7 @@ pointing here.
 | [`docs/changelog-att-3b1.md`](docs/changelog-att-3b1.md) | Branch arc (boot → ethernet) |
 | [`docs/networking.md`](docs/networking.md) | Short Darwin feth/pcap / telnet / BPF runbook |
 | [`docs/mame-fork.md`](docs/mame-fork.md) | Fork pointer and note ownership |
+| [`docs/ghidra-mcp-ether.md`](docs/ghidra-mcp-ether.md) | Ghidra + [ghidra-mcp](https://github.com/bethington/ghidra-mcp) setup for deeper `ether.o` RE |
 
 Non-obvious hardware constraints that affect code stay as comments in the
 driver sources (MAME practice: the source is the documentation).
